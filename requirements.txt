@@ -1,0 +1,23 @@
+﻿# Web Interface
+streamlit
+
+# Deep Learning
+torch
+torchvision
+transformers
+
+# OCR
+pytesseract
+Pillow
+
+# Embeddings
+sentence-transformers
+nomic
+einops
+
+# Vector Database
+qdrant-client
+
+# Utilities
+numpy
+tqdm
