@@ -9,12 +9,7 @@ large model weights are initialized.
 from functools import lru_cache
 
 import numpy as np
-import torch
 from PIL import Image
-from transformers import AutoImageProcessor, AutoModel
-
-# Device configuration
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Using dinov2-base which produces 768-dimensional embeddings
 MODEL_NAME = "facebook/dinov2-base"
@@ -29,15 +24,20 @@ def get_model_components():
     environments, so health checks and /_stcore endpoints respond before the
     large ML weights are downloaded into memory.
     """
+    import torch
+    from transformers import AutoImageProcessor, AutoModel
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     print(f"Loading DINOv2 model: {MODEL_NAME}")
-    print(f"Device: {DEVICE}")
+    print(f"Device: {device}")
 
     processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
-    model = AutoModel.from_pretrained(MODEL_NAME).to(DEVICE)
+    model = AutoModel.from_pretrained(MODEL_NAME).to(device)
     model.eval()
 
     print("DINOv2 model loaded successfully")
-    return processor, model
+    return processor, model, device, torch
 
 
 def get_visual_embedding(image: Image.Image) -> np.ndarray:
@@ -51,10 +51,10 @@ def get_visual_embedding(image: Image.Image) -> np.ndarray:
         Normalized embedding as numpy array (768-dim for dinov2-base)
     """
     try:
-        processor, model = get_model_components()
+        processor, model, device, torch = get_model_components()
 
         # Preprocess image
-        inputs = processor(images=image, return_tensors="pt").to(DEVICE)
+        inputs = processor(images=image, return_tensors="pt").to(device)
 
         with torch.no_grad():
             # Get model output

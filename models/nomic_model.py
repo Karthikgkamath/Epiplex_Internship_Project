@@ -9,11 +9,6 @@ initialized.
 from functools import lru_cache
 
 import numpy as np
-import torch
-from sentence_transformers import SentenceTransformer
-
-# Device configuration
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Using nomic-embed-text-v1 for text embeddings
 MODEL_NAME = "nomic-ai/nomic-embed-text-v1"
@@ -24,13 +19,18 @@ def get_model():
     """
     Load the Nomic embedding model once, on first use.
     """
+    import torch
+    from sentence_transformers import SentenceTransformer
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     print(f"Loading Nomic text embedding model: {MODEL_NAME}")
-    print(f"Device: {DEVICE}")
+    print(f"Device: {device}")
 
     model = SentenceTransformer(
         MODEL_NAME,
         trust_remote_code=True,
-        device=DEVICE,
+        device=device,
     )
 
     print("Nomic model loaded successfully")
