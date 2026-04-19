@@ -25,7 +25,14 @@ def get_model_components():
     large ML weights are downloaded into memory.
     """
     import torch
-    from transformers import AutoImageProcessor, AutoModel
+    from transformers import AutoModel
+
+    try:
+        from transformers import AutoImageProcessor
+    except ImportError:
+        # Older transformers releases used AutoFeatureExtractor for image
+        # preprocessing. Keep this fallback so a stale deploy fails less often.
+        from transformers import AutoFeatureExtractor as AutoImageProcessor
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
 

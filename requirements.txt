@@ -4,14 +4,14 @@ streamlit
 # Deep Learning
 torch
 torchvision
-transformers
+transformers>=4.38,<5
 
 # OCR
 pytesseract
 Pillow
 
 # Embeddings
-sentence-transformers
+sentence-transformers>=2.6,<4
 nomic
 einops
 
