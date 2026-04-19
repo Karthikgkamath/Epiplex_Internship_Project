@@ -2,61 +2,76 @@
 DINOv2 Visual Embedding Model
 
 This module uses Meta's DINOv2 for generating visual embeddings from images.
-DINOv2 is a self-supervised vision transformer that produces high-quality visual features.
+DINOv2 is loaded lazily so hosted Streamlit deployments can boot before the
+large model weights are initialized.
 """
 
-import torch
-from transformers import AutoImageProcessor, AutoModel
-from PIL import Image
+from functools import lru_cache
+
 import numpy as np
+import torch
+from PIL import Image
+from transformers import AutoImageProcessor, AutoModel
 
 # Device configuration
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Load DINOv2 model
 # Using dinov2-base which produces 768-dimensional embeddings
 MODEL_NAME = "facebook/dinov2-base"
 
-print(f"🔧 Loading DINOv2 model: {MODEL_NAME}")
-print(f"🖥️  Device: {DEVICE}")
 
-processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
-model = AutoModel.from_pretrained(MODEL_NAME).to(DEVICE)
-model.eval()
+@lru_cache(maxsize=1)
+def get_model_components():
+    """
+    Load DINOv2 once, on first use.
 
-print("✅ DINOv2 model loaded successfully")
+    Keeping model loading lazy lets Streamlit start quickly in hosted
+    environments, so health checks and /_stcore endpoints respond before the
+    large ML weights are downloaded into memory.
+    """
+    print(f"Loading DINOv2 model: {MODEL_NAME}")
+    print(f"Device: {DEVICE}")
+
+    processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
+    model = AutoModel.from_pretrained(MODEL_NAME).to(DEVICE)
+    model.eval()
+
+    print("DINOv2 model loaded successfully")
+    return processor, model
 
 
 def get_visual_embedding(image: Image.Image) -> np.ndarray:
     """
     Generate normalized DINOv2 embedding for an image.
-    
+
     Args:
         image: PIL Image object
-        
+
     Returns:
         Normalized embedding as numpy array (768-dim for dinov2-base)
     """
     try:
+        processor, model = get_model_components()
+
         # Preprocess image
         inputs = processor(images=image, return_tensors="pt").to(DEVICE)
-        
+
         with torch.no_grad():
             # Get model output
             outputs = model(**inputs)
-            
+
             # Use [CLS] token embedding as the image representation
             # Shape: (batch_size, hidden_size)
             embedding = outputs.last_hidden_state[:, 0, :]
-            
+
             # L2 normalization for cosine similarity
             embedding = embedding / embedding.norm(dim=-1, keepdim=True)
-        
+
         # Convert to numpy and remove batch dimension
         return embedding.cpu().numpy()[0]
-    
+
     except Exception as e:
-        print(f"⚠️ DINOv2 Embedding Error: {e}")
+        print(f"DINOv2 Embedding Error: {e}")
         # Return zero vector on error
         return np.zeros(768, dtype=np.float32)
 
@@ -64,7 +79,7 @@ def get_visual_embedding(image: Image.Image) -> np.ndarray:
 def get_embedding_dimension() -> int:
     """
     Get the dimension of DINOv2 embeddings.
-    
+
     Returns:
         Embedding dimension (768 for dinov2-base)
     """
@@ -74,19 +89,18 @@ def get_embedding_dimension() -> int:
 def get_batch_embeddings(images: list) -> np.ndarray:
     """
     Generate embeddings for multiple images in batch.
-    
+
     Args:
         images: List of PIL Image objects
-        
+
     Returns:
         Array of embeddings with shape (num_images, 768)
     """
     embeddings = []
-    
+
     for i, image in enumerate(images):
-        print(f"  🖼️  Processing image {i+1}/{len(images)} with DINOv2...")
+        print(f"Processing image {i + 1}/{len(images)} with DINOv2...")
         embedding = get_visual_embedding(image)
         embeddings.append(embedding)
-    
-    return np.array(embeddings)
 
+    return np.array(embeddings)
